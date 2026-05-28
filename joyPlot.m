@@ -67,13 +67,19 @@ classdef joyPlot < handle
     end
 
     methods
-        function obj = joyPlot(Data, varargin)
-            obj.Data = Data;
-            obj.ridgeNum = length(obj.Data);
+        function obj = joyPlot(varargin)
+            % Parse axes handle (解析坐标区句柄)
+            if isa(varargin{1}, 'matlab.graphics.axis.Axes')
+                obj.ax = varargin{1};
+                varargin(1) = [];
+            else
+                obj.ax = gca;
+            end
+            obj.ax.NextPlot = 'add';
 
-            % Display author information
-            % disp(char([64, 97, 117, 116, 104, 111, 114, 32, 58, 32, ...
-            %            115, 108, 97, 110, 100, 97, 114, 101, 114]))
+            obj.Data = varargin{1};
+            varargin(1) = [];
+            obj.ridgeNum = length(obj.Data);
             
             % Parse input parameters
             for i = 1:2:(length(varargin) - 1)
@@ -98,13 +104,6 @@ classdef joyPlot < handle
                     obj.ColorList = obj.defaultColorList3;
             end
             
-            % Re-parse to override defaults with user-specified parameters
-            for i = 1:2:(length(varargin) - 1)
-                tid = ismember(obj.arginList, varargin{i});
-                if any(tid)
-                    obj.(obj.arginList{tid}) = varargin{i + 1};
-                end
-            end
             
             % Calculate global X range across all ridges
             obj.minX = min(obj.Data{1});
@@ -116,8 +115,8 @@ classdef joyPlot < handle
         end
         
         function obj = draw(obj)
-            obj.ax = gca;
-            hold on;
+            % obj.ax = gca;
+            % obj.ax.NextPlot = 'add';
             
             % Axes basic settings
             obj.ax.LineWidth = 1;
@@ -175,10 +174,10 @@ classdef joyPlot < handle
                        tX .* 0 + obj.Sep .* i - obj.Sep ./ 2.5; ...
                        tX .* nan];
                 if isequal(obj.ColorMode, 'Order')
-                    obj.scatterHdl(i) = plot(tXX(:), tYY(:), 'Color', [obj.ColorList(mod(i - 1, size(obj.ColorList, 1)) + 1, :), 0.5], ...
+                    obj.scatterHdl(i) = plot(obj.ax, tXX(:), tYY(:), 'Color', [obj.ColorList(mod(i - 1, size(obj.ColorList, 1)) + 1, :), 0.5], ...
                                               'LineWidth', 0.8, 'Visible', 'off');
                 else
-                    obj.scatterHdl(i) = plot(tXX(:), tYY(:), 'Color', [0, 0, 0, 0.5], ...
+                    obj.scatterHdl(i) = plot(obj.ax, tXX(:), tYY(:), 'Color', [0, 0, 0, 0.5], ...
                                               'LineWidth', 0.8, 'Visible', 'off');
                 end
                 if isequal(obj.Scatter, 'on')
@@ -197,14 +196,14 @@ classdef joyPlot < handle
                 switch obj.ColorMode
                     case 'Order'
                         % Uniform color per ridge (cycled through color list)
-                        obj.ridgePatchHdl(i) = fill([Xi(1), Xi, Xi(end)], [0, F, 0] + obj.Sep .* i, ...
+                        obj.ridgePatchHdl(i) = fill(obj.ax, [Xi(1), Xi, Xi(end)], [0, F, 0] + obj.Sep .* i, ...
                             obj.ColorList(mod(i - 1, size(obj.ColorList, 1)) + 1, :), ...
                             'EdgeColor', 'none', 'FaceAlpha', 0.5);
-                        obj.ridgeLineHdl(i) = plot([Xi(1), Xi, Xi(end)], [0, F, 0] + obj.Sep .* i, ...
+                        obj.ridgeLineHdl(i) = plot(obj.ax, [Xi(1), Xi, Xi(end)], [0, F, 0] + obj.Sep .* i, ...
                             'Color', obj.ColorList(mod(i - 1, size(obj.ColorList, 1)) + 1, :), 'LineWidth', 0.8);
-                        colormap(obj.ColorList);
-                        try caxis([1, obj.ridgeNum]); catch; end
-                        try clim([1, obj.ridgeNum]); catch; end
+                        colormap(obj.ax, obj.ColorList);
+                        try caxis(obj.ax, [1, obj.ridgeNum]); catch; end
+                        try clim(obj.ax, [1, obj.ridgeNum]); catch; end
                         
                     case 'X'
                         % Color based on X position within each ridge (normalized to [0,1])
@@ -214,14 +213,14 @@ classdef joyPlot < handle
                         tC  = cat(3, interp1(tT, obj.ColorList(:, 1), tTi), ...
                                      interp1(tT, obj.ColorList(:, 2), tTi), ...
                                      interp1(tT, obj.ColorList(:, 3), tTi));
-                        obj.ridgePatchHdl(i) = fill([Xi(1), Xi, Xi(end), Xi(end:-1:1)], ...
+                        obj.ridgePatchHdl(i) = fill(obj.ax, [Xi(1), Xi, Xi(end), Xi(end:-1:1)], ...
                             [0, F, 0, F .* 0] + obj.Sep .* i, tC, ...
                             'EdgeColor', 'none', 'FaceAlpha', 0.9, 'FaceColor', 'interp');
-                        obj.ridgeLineHdl(i) = plot([Xi(1), Xi, Xi(end)], [0, F, 0] + obj.Sep .* i, ...
+                        obj.ridgeLineHdl(i) = plot(obj.ax, [Xi(1), Xi, Xi(end)], [0, F, 0] + obj.Sep .* i, ...
                             'Color', [0, 0, 0, 0.9], 'LineWidth', 0.8);
-                        colormap(obj.ColorList);
-                        try caxis([-1, 1]); catch; end
-                        try clim([-1, 1]); catch; end
+                        colormap(obj.ax, obj.ColorList);
+                        try caxis(obj.ax, [-1, 1]); catch; end
+                        try clim(obj.ax, [-1, 1]); catch; end
                         
                     case 'GlobalX'
                         % Color based on global X position across all ridges
@@ -231,14 +230,14 @@ classdef joyPlot < handle
                         tC  = cat(3, interp1(tT, obj.ColorList(:, 1), tTi), ...
                                      interp1(tT, obj.ColorList(:, 2), tTi), ...
                                      interp1(tT, obj.ColorList(:, 3), tTi));
-                        obj.ridgePatchHdl(i) = fill([Xi(1), Xi, Xi(end), Xi(end:-1:1)], ...
+                        obj.ridgePatchHdl(i) = fill(obj.ax, [Xi(1), Xi, Xi(end), Xi(end:-1:1)], ...
                             [0, F, 0, F .* 0] + obj.Sep .* i, tC, ...
                             'EdgeColor', 'none', 'FaceAlpha', 0.9, 'FaceColor', 'interp');
-                        obj.ridgeLineHdl(i) = plot([Xi(1), Xi, Xi(end)], [0, F, 0] + obj.Sep .* i, ...
+                        obj.ridgeLineHdl(i) = plot(obj.ax, [Xi(1), Xi, Xi(end)], [0, F, 0] + obj.Sep .* i, ...
                             'Color', [0, 0, 0, 0.9], 'LineWidth', 0.8);
-                        colormap(obj.ColorList);
-                        try caxis([obj.minX, obj.maxX]); catch; end
-                        try clim([obj.minX, obj.maxX]); catch; end
+                        colormap(obj.ax, obj.ColorList);
+                        try caxis(obj.ax, [obj.minX, obj.maxX]); catch; end
+                        try clim(obj.ax, [obj.minX, obj.maxX]); catch; end
                         
                     case 'Kdensity'
                         % Color based on kernel density value (height)
@@ -248,14 +247,14 @@ classdef joyPlot < handle
                         tC  = cat(3, interp1(tT, obj.ColorList(:, 1), tTi), ...
                                      interp1(tT, obj.ColorList(:, 2), tTi), ...
                                      interp1(tT, obj.ColorList(:, 3), tTi));
-                        obj.ridgePatchHdl(i) = fill([Xi(1), Xi, Xi(end), Xi(end:-1:1)], ...
+                        obj.ridgePatchHdl(i) = fill(obj.ax, [Xi(1), Xi, Xi(end), Xi(end:-1:1)], ...
                             [0, F, 0, F .* 0] + obj.Sep .* i, tC, ...
                             'EdgeColor', 'none', 'FaceAlpha', 0.9, 'FaceColor', 'interp');
-                        obj.ridgeLineHdl(i) = plot([Xi(1), Xi, Xi(end)], [0, F, 0] + obj.Sep .* i, ...
+                        obj.ridgeLineHdl(i) = plot(obj.ax, [Xi(1), Xi, Xi(end)], [0, F, 0] + obj.Sep .* i, ...
                             'Color', [0, 0, 0, 0.9], 'LineWidth', 0.8);
-                        colormap(obj.ColorList);
-                        try caxis([0, obj.maxY]); catch; end
-                        try clim([0, obj.maxY]); catch; end
+                        colormap(obj.ax, obj.ColorList);
+                        try caxis(obj.ax, [0, obj.maxY]); catch; end
+                        try clim(obj.ax, [0, obj.maxY]); catch; end
                         
                     case 'Qt'
                         % Color based on quantile intervals
@@ -270,20 +269,20 @@ classdef joyPlot < handle
                             tB(idx) = obj.ColorList(mod(j - 1, size(obj.ColorList, 1)) + 1, 3);
                         end
                         tC = cat(3, tR, tG, tB);
-                        obj.ridgePatchHdl(i) = fill([Xi(1), Xi, Xi(end), Xi(end:-1:1)], ...
+                        obj.ridgePatchHdl(i) = fill(obj.ax, [Xi(1), Xi, Xi(end), Xi(end:-1:1)], ...
                             [0, F, 0, F .* 0] + obj.Sep .* i, tC, ...
                             'EdgeColor', 'none', 'FaceAlpha', 0.9, 'FaceColor', 'interp');
-                        obj.ridgeLineHdl(i) = plot([Xi(1), Xi, Xi(end)], [0, F, 0] + obj.Sep .* i, ...
+                        obj.ridgeLineHdl(i) = plot(obj.ax, [Xi(1), Xi, Xi(end)], [0, F, 0] + obj.Sep .* i, ...
                             'Color', [0, 0, 0, 0.9], 'LineWidth', 0.8);
-                        colormap(obj.ColorList);
-                        try caxis([-1, 1]); catch; end
-                        try clim([-1, 1]); catch; end
+                        colormap(obj.ax, obj.ColorList);
+                        try caxis(obj.ax, [-1, 1]); catch; end
+                        try clim(obj.ax, [-1, 1]); catch; end
                 end
                 
                 % Draw median line
                 tMedX = median(tX);
                 tMedY = interp1(Xi, F, tMedX);
-                obj.medLineHdl(i) = plot([tMedX, tMedX], [0, tMedY] + obj.Sep .* [i, i], ...
+                obj.medLineHdl(i) = plot(obj.ax, [tMedX, tMedX], [0, tMedY] + obj.Sep .* [i, i], ...
                     'LineStyle', '--', 'LineWidth', 1, 'Color', [0, 0, 0], 'Visible', 'off');
                 if isequal(obj.MedLine, 'on')
                     set(obj.medLineHdl(i), 'Visible', 'on');
@@ -292,19 +291,19 @@ classdef joyPlot < handle
                 % Draw quantile lines
                 tQtY = [obj.QtY(i, :); obj.QtY(i, :) .* 0; obj.QtY(i, :) .* nan] + obj.Sep .* i;
                 tQtX = [obj.QtX(i, 2:end-1); obj.QtX(i, 2:end-1); obj.QtX(i, 2:end-1) .* nan];
-                obj.QtLineHdl(i) = plot(tQtX(:), tQtY(:), 'LineWidth', 1, 'Color', [0, 0, 0, 0.8], 'Visible', 'off');
+                obj.QtLineHdl(i) = plot(obj.ax, tQtX(:), tQtY(:), 'LineWidth', 1, 'Color', [0, 0, 0, 0.8], 'Visible', 'off');
                 if isequal(obj.QtLine, 'on')
                     set(obj.QtLineHdl(i), 'Visible', 'on');
                 end
             end
             
             % Final axis adjustments
-            axis tight
+            axis(obj.ax, 'tight')
             obj.ax.YLim(1) = obj.Sep / 2;
             
             % Create dummy legend handles for quantile mode
             for i = 1:size(obj.QtX, 2) - 1
-                obj.QtLegendHdl(i) = fill(mean(obj.ax.XLim) .* [1, 1, 1, 1], ...
+                obj.QtLegendHdl(i) = fill(obj.ax, mean(obj.ax.XLim) .* [1, 1, 1, 1], ...
                                            mean(obj.ax.YLim) .* [1, 1, 1, 1], ...
                                            obj.ColorList(mod(i - 1, size(obj.ColorList, 1)) + 1, :), ...
                                            'EdgeColor', 'none', 'FaceAlpha', 0.9);
@@ -323,7 +322,7 @@ classdef joyPlot < handle
         % Recolor all ridges with new color list
         function obj = setPatchColor(obj, ColorList)
             obj.ColorList = ColorList;
-            colormap(obj.ColorList);
+            colormap(obj.ax, obj.ColorList);
             
             for i = obj.ridgeNum:-1:1
                 Xi = obj.XiSet{i};
